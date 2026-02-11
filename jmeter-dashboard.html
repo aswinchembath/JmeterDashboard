@@ -1,0 +1,3044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JMeter Results Analyzer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .upload-box {
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-box:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .upload-box.active {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .upload-box h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .upload-box input[type="file"] {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .file-name {
+            margin-top: 10px;
+            color: #48bb78;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn-compare {
+            background: #48bb78;
+            color: white;
+            padding: 12px 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-compare:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .btn-compare:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .comparison-mode {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .report-column {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .report-header h2 {
+            color: #2d3748;
+            font-size: 20px;
+        }
+
+        .report-badge {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .report-badge.report-2 {
+            background: #48bb78;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-card.error {
+            background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
+        }
+
+        .metric-card.success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+
+        .metric-card.performance {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        }
+
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .metric-subtitle {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .chart-title {
+            color: #2d3748;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .error-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .error-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .error-table th {
+            background: #2d3748;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .error-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: #4a5568;
+        }
+
+        .error-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .error-table tr:hover {
+            background: #f7fafc;
+        }
+
+        .error-count {
+            background: #f56565;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .single-view {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            color: #718096;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .spinner {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #a0aec0;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .toggle-btn {
+            background: white;
+            color: #4a5568;
+            padding: 10px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .response-code {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #edf2f7;
+            color: #2d3748;
+        }
+
+        .response-code.error {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .response-code.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .comparison-table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .comparison-table th {
+            background: #2d3748;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .comparison-table th.metric-col {
+            background: #4a5568;
+            min-width: 200px;
+        }
+
+        .comparison-table th.report1-col {
+            background: #667eea;
+        }
+
+        .comparison-table th.report2-col {
+            background: #48bb78;
+        }
+
+        .comparison-table th.diff-col {
+            background: #ed8936;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .comparison-table tr:hover {
+            background: #f7fafc;
+        }
+
+        .diff-positive {
+            color: #48bb78;
+            font-weight: 600;
+        }
+
+        .diff-negative {
+            color: #f56565;
+            font-weight: 600;
+        }
+
+        .diff-neutral {
+            color: #718096;
+        }
+
+        .variation-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .variation-indicator.improved {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .variation-indicator.degraded {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .variation-indicator.neutral {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .summary-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .summary-header h2 {
+            color: #2d3748;
+            font-size: 22px;
+            margin: 0;
+        }
+
+        .summary-icon {
+            font-size: 24px;
+        }
+
+        .summary-content {
+            line-height: 1.8;
+            color: #4a5568;
+        }
+
+        .summary-content h3 {
+            color: #2d3748;
+            font-size: 16px;
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summary-content p {
+            margin: 10px 0;
+        }
+
+        .summary-content ul {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+
+        .summary-content li {
+            margin: 8px 0;
+        }
+
+        .insight-box {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .insight-box.warning {
+            border-left-color: #ed8936;
+            background: #fffaf0;
+        }
+
+        .insight-box.success {
+            border-left-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .insight-box.critical {
+            border-left-color: #f56565;
+            background: #fff5f5;
+        }
+
+        .metric-highlight {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            margin: 30px 0;
+            border-radius: 2px;
+        }
+
+        .recommendation-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .recommendation-badge.high {
+            background: #f56565;
+        }
+
+        .recommendation-badge.medium {
+            background: #ed8936;
+        }
+
+        .recommendation-badge.low {
+            background: #48bb78;
+        }
+
+        .label-comparison-table {
+            margin-top: 20px;
+        }
+
+        .arrow-up::before {
+            content: "↑ ";
+            color: #f56565;
+        }
+
+        .arrow-down::before {
+            content: "↓ ";
+            color: #48bb78;
+        }
+
+        .arrow-equal::before {
+            content: "→ ";
+            color: #718096;
+        }
+
+        .filters-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-filter {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-filter:hover {
+            background: #5568d3;
+        }
+
+        .btn-reset {
+            padding: 10px 20px;
+            background: #e2e8f0;
+            color: #4a5568;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-reset:hover {
+            background: #cbd5e0;
+        }
+
+        .data-table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .table-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .table-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-box {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 200px;
+        }
+
+        .btn-export {
+            padding: 8px 16px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .data-table-wrapper {
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 600px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .data-table th {
+            background: #2d3748;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .data-table th:hover {
+            background: #4a5568;
+        }
+
+        .data-table th.sortable::after {
+            content: " ↕";
+            opacity: 0.5;
+        }
+
+        .data-table th.sort-asc::after {
+            content: " ↑";
+            opacity: 1;
+        }
+
+        .data-table th.sort-desc::after {
+            content: " ↓";
+            opacity: 1;
+        }
+
+        .data-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #4a5568;
+        }
+
+        .data-table tr:hover {
+            background: #f7fafc;
+        }
+
+        .data-table tr.error-row {
+            background: #fff5f5;
+        }
+
+        .data-table tr.error-row:hover {
+            background: #fed7d7;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.error {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .pagination-info {
+            color: #718096;
+            font-size: 13px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .page-btn {
+            padding: 6px 12px;
+            background: white;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .percentile-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .percentile-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .percentile-label {
+            font-size: 11px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .percentile-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card-label {
+            font-size: 11px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .loading-text {
+            margin-top: 15px;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            width: 300px;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .advanced-filters {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .advanced-filters.active {
+            display: block;
+        }
+
+        .toggle-advanced {
+            color: #667eea;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .toggle-advanced:hover {
+            text-decoration: underline;
+        }
+
+        .chart-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .chart-option-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4a5568;
+            transition: all 0.3s ease;
+        }
+
+        .chart-option-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .chart-option-btn:hover {
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 JMeter Results Analyzer</h1>
+            <p>Professional dashboard for analyzing JMeter CSV results with error tracking and comparison features</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-grid">
+                <div class="upload-box" id="upload1" onclick="document.getElementById('file1').click()">
+                    <h3>📊 Report 1</h3>
+                    <input type="file" id="file1" accept=".csv" onchange="handleFileUpload(1, event)">
+                    <button class="upload-btn" type="button">Choose CSV File</button>
+                    <div class="file-name" id="filename1"></div>
+                </div>
+                <div class="upload-box" id="upload2" onclick="document.getElementById('file2').click()">
+                    <h3>📊 Report 2 (Optional)</h3>
+                    <input type="file" id="file2" accept=".csv" onchange="handleFileUpload(2, event)">
+                    <button class="upload-btn" type="button">Choose CSV File</button>
+                    <div class="file-name" id="filename2"></div>
+                </div>
+            </div>
+            <div class="controls">
+                <button class="btn-compare" id="analyzeBtn" onclick="analyzeReports()" disabled>Analyze Reports</button>
+            </div>
+        </div>
+
+        <div class="view-toggle" id="viewToggle" style="display: none;">
+            <button class="toggle-btn active" onclick="switchView('single')">Single View</button>
+            <button class="toggle-btn" onclick="switchView('compare')">Visual Comparison</button>
+            <button class="toggle-btn" onclick="switchView('detailed')">Detailed Table Comparison</button>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <!-- Content will be dynamically generated -->
+        </div>
+    </div>
+
+    <script>
+        let report1Data = null;
+        let report2Data = null;
+        let currentView = 'single';
+        let charts = {};
+
+        function handleFileUpload(reportNum, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById(`upload${reportNum}`).classList.add('active');
+            document.getElementById(`filename${reportNum}`).textContent = `✓ ${file.name}`;
+
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (reportNum === 1) {
+                        report1Data = results.data;
+                    } else {
+                        report2Data = results.data;
+                    }
+                    updateAnalyzeButton();
+                }
+            });
+        }
+
+        function updateAnalyzeButton() {
+            const btn = document.getElementById('analyzeBtn');
+            if (report1Data) {
+                btn.disabled = false;
+            }
+        }
+
+        function analyzeReports() {
+            const dashboard = document.getElementById('dashboard');
+            const viewToggle = document.getElementById('viewToggle');
+            
+            if (report2Data) {
+                viewToggle.style.display = 'flex';
+                switchView('detailed'); // Default to detailed comparison when 2 reports
+            } else {
+                viewToggle.style.display = 'none';
+                renderSingleView(report1Data);
+            }
+            
+            dashboard.classList.add('active');
+        }
+
+        function switchView(view) {
+            currentView = view;
+            const buttons = document.querySelectorAll('.toggle-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (view === 'single') {
+                renderSingleView(report1Data);
+            } else if (view === 'compare') {
+                renderComparisonView();
+            } else if (view === 'detailed') {
+                renderDetailedComparison();
+            }
+        }
+
+        function renderDetailedComparison() {
+            const dashboard = document.getElementById('dashboard');
+            const stats1 = processReportData(report1Data);
+            const stats2 = processReportData(report2Data);
+
+            const summary = generateComparisonSummary(stats1, stats2);
+            
+            dashboard.innerHTML = `
+                ${summary}
+                
+                <div class="comparison-table-container">
+                    <h2 style="color: #2d3748; margin-bottom: 20px; font-size: 20px;">📊 Overall Performance Comparison</h2>
+                    ${generateOverallComparisonTable(stats1, stats2)}
+                </div>
+
+                <div class="comparison-table-container">
+                    <h2 style="color: #2d3748; margin-bottom: 20px; font-size: 20px;">🎯 Request Label Comparison</h2>
+                    ${generateLabelComparisonTable(stats1, stats2)}
+                </div>
+
+                <div class="comparison-table-container">
+                    <h2 style="color: #2d3748; margin-bottom: 20px; font-size: 20px;">⚠️ Error Comparison</h2>
+                    ${generateErrorComparisonTable(stats1, stats2)}
+                </div>
+
+                <div class="comparison-table-container">
+                    <h2 style="color: #2d3748; margin-bottom: 20px; font-size: 20px;">📈 Response Time Variation Analysis</h2>
+                    <canvas id="responseTimeComparisonChart"></canvas>
+                </div>
+            `;
+
+            setTimeout(() => {
+                renderResponseTimeComparisonChart(stats1, stats2);
+            }, 100);
+        }
+
+        function generateComparisonSummary(stats1, stats2) {
+            const errorRateDiff = stats2.errorRate - stats1.errorRate;
+            const responseTimeDiff = stats2.avgResponseTime - stats1.avgResponseTime;
+            const throughputDiff = stats2.throughput - stats1.throughput;
+            const requestDiff = stats2.totalRequests - stats1.totalRequests;
+
+            // Calculate percentage changes
+            const errorRateChange = stats1.errorRate > 0 ? ((errorRateDiff / stats1.errorRate) * 100).toFixed(1) : 'N/A';
+            const responseTimeChange = ((responseTimeDiff / stats1.avgResponseTime) * 100).toFixed(1);
+            const throughputChange = ((throughputDiff / stats1.throughput) * 100).toFixed(1);
+
+            // Determine overall verdict
+            let overallVerdict = '';
+            let verdictClass = '';
+            let verdictIcon = '';
+            
+            const hasSignificantErrorIncrease = errorRateDiff > 1;
+            const hasSignificantResponseTimeIncrease = responseTimeDiff > stats1.avgResponseTime * 0.1;
+            const hasSignificantThroughputDecrease = throughputDiff < -stats1.throughput * 0.1;
+
+            if (hasSignificantErrorIncrease || hasSignificantResponseTimeIncrease) {
+                overallVerdict = 'Performance Degradation Detected';
+                verdictClass = 'critical';
+                verdictIcon = '🔴';
+            } else if (hasSignificantThroughputDecrease) {
+                overallVerdict = 'Performance Concerns Identified';
+                verdictClass = 'warning';
+                verdictIcon = '⚠️';
+            } else if (errorRateDiff < -0.5 && responseTimeDiff < 0) {
+                overallVerdict = 'Performance Improvement';
+                verdictClass = 'success';
+                verdictIcon = '✅';
+            } else {
+                overallVerdict = 'Performance Stable';
+                verdictClass = 'success';
+                verdictIcon = '✅';
+            }
+
+            // Find problematic labels
+            const problematicLabels = [];
+            Object.keys(stats1.labelStats).forEach(label => {
+                if (stats2.labelStats[label]) {
+                    const timeDiff = stats2.labelStats[label].avgTime - stats1.labelStats[label].avgTime;
+                    const percentChange = ((timeDiff / stats1.labelStats[label].avgTime) * 100);
+                    if (percentChange > 20) {
+                        problematicLabels.push({
+                            label,
+                            change: percentChange.toFixed(1),
+                            report1Time: stats1.labelStats[label].avgTime.toFixed(0),
+                            report2Time: stats2.labelStats[label].avgTime.toFixed(0)
+                        });
+                    }
+                }
+            });
+            problematicLabels.sort((a, b) => b.change - a.change);
+
+            // Find improved labels
+            const improvedLabels = [];
+            Object.keys(stats1.labelStats).forEach(label => {
+                if (stats2.labelStats[label]) {
+                    const timeDiff = stats2.labelStats[label].avgTime - stats1.labelStats[label].avgTime;
+                    const percentChange = ((timeDiff / stats1.labelStats[label].avgTime) * 100);
+                    if (percentChange < -10) {
+                        improvedLabels.push({
+                            label,
+                            change: Math.abs(percentChange).toFixed(1),
+                            report1Time: stats1.labelStats[label].avgTime.toFixed(0),
+                            report2Time: stats2.labelStats[label].avgTime.toFixed(0)
+                        });
+                    }
+                }
+            });
+            improvedLabels.sort((a, b) => b.change - a.change);
+
+            return `
+                <div class="summary-section">
+                    <div class="summary-header">
+                        <span class="summary-icon">📋</span>
+                        <h2>Comparison Summary & Analysis</h2>
+                    </div>
+                    <div class="summary-content">
+                        <div class="insight-box ${verdictClass}">
+                            <h3>${verdictIcon} Overall Verdict: ${overallVerdict}</h3>
+                            <p>Comparing Report 1 (${stats1.totalRequests.toLocaleString()} requests) with Report 2 (${stats2.totalRequests.toLocaleString()} requests)</p>
+                        </div>
+
+                        <h3>🔍 Key Findings</h3>
+                        <ul>
+                            <li>
+                                <strong>Error Rate:</strong> 
+                                ${errorRateDiff > 0 
+                                    ? `<span class="diff-negative">Increased by ${Math.abs(errorRateDiff).toFixed(2)}% (${errorRateChange}% change)</span> - ${stats1.errorRate}% → ${stats2.errorRate}%`
+                                    : errorRateDiff < 0 
+                                    ? `<span class="diff-positive">Decreased by ${Math.abs(errorRateDiff).toFixed(2)}% (${Math.abs(errorRateChange)}% improvement)</span> - ${stats1.errorRate}% → ${stats2.errorRate}%`
+                                    : `<span class="diff-neutral">Remained stable at ${stats2.errorRate}%</span>`
+                                }
+                            </li>
+                            <li>
+                                <strong>Average Response Time:</strong> 
+                                ${responseTimeDiff > 0 
+                                    ? `<span class="diff-negative">Increased by ${Math.abs(responseTimeDiff).toFixed(0)} ms (${responseTimeChange}% slower)</span> - ${stats1.avgResponseTime.toFixed(0)} ms → ${stats2.avgResponseTime.toFixed(0)} ms`
+                                    : responseTimeDiff < 0 
+                                    ? `<span class="diff-positive">Decreased by ${Math.abs(responseTimeDiff).toFixed(0)} ms (${Math.abs(responseTimeChange)}% faster)</span> - ${stats1.avgResponseTime.toFixed(0)} ms → ${stats2.avgResponseTime.toFixed(0)} ms`
+                                    : `<span class="diff-neutral">Remained stable at ${stats2.avgResponseTime.toFixed(0)} ms</span>`
+                                }
+                            </li>
+                            <li>
+                                <strong>Throughput:</strong> 
+                                ${throughputDiff > 0 
+                                    ? `<span class="diff-positive">Increased by ${Math.abs(throughputDiff).toFixed(2)} req/s (${throughputChange}% improvement)</span> - ${stats1.throughput} → ${stats2.throughput} req/s`
+                                    : throughputDiff < 0 
+                                    ? `<span class="diff-negative">Decreased by ${Math.abs(throughputDiff).toFixed(2)} req/s (${Math.abs(throughputChange)}% reduction)</span> - ${stats1.throughput} → ${stats2.throughput} req/s`
+                                    : `<span class="diff-neutral">Remained stable at ${stats2.throughput} req/s</span>`
+                                }
+                            </li>
+                            <li>
+                                <strong>Total Requests:</strong> 
+                                ${requestDiff > 0 
+                                    ? `<span class="diff-neutral">Increased by ${requestDiff.toLocaleString()} requests</span>`
+                                    : requestDiff < 0 
+                                    ? `<span class="diff-neutral">Decreased by ${Math.abs(requestDiff).toLocaleString()} requests</span>`
+                                    : `<span class="diff-neutral">Same number of requests</span>`
+                                }
+                            </li>
+                        </ul>
+
+                        ${problematicLabels.length > 0 ? `
+                            <div class="insight-box warning">
+                                <h3>⚠️ Performance Degradation Detected</h3>
+                                <p>The following request types showed significant response time increases:</p>
+                                <ul>
+                                    ${problematicLabels.slice(0, 5).map(item => `
+                                        <li>
+                                            <strong>${item.label}</strong>: 
+                                            <span class="diff-negative">+${item.change}% slower</span> 
+                                            (${item.report1Time} ms → ${item.report2Time} ms)
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+
+                        ${improvedLabels.length > 0 ? `
+                            <div class="insight-box success">
+                                <h3>✅ Performance Improvements Detected</h3>
+                                <p>The following request types showed significant response time improvements:</p>
+                                <ul>
+                                    ${improvedLabels.slice(0, 5).map(item => `
+                                        <li>
+                                            <strong>${item.label}</strong>: 
+                                            <span class="diff-positive">${item.change}% faster</span> 
+                                            (${item.report1Time} ms → ${item.report2Time} ms)
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+
+                        <h3>💡 Recommendations</h3>
+                        <ul>
+                            ${errorRateDiff > 1 ? `
+                                <li><span class="recommendation-badge high">High Priority</span> Investigate the ${Math.abs(errorRateDiff).toFixed(2)}% increase in error rate. Review server logs and error messages for root cause.</li>
+                            ` : ''}
+                            ${responseTimeDiff > stats1.avgResponseTime * 0.2 ? `
+                                <li><span class="recommendation-badge high">High Priority</span> Response time increased by ${responseTimeChange}%. Check for infrastructure changes, database query performance, or increased load.</li>
+                            ` : ''}
+                            ${problematicLabels.length > 0 ? `
+                                <li><span class="recommendation-badge medium">Medium Priority</span> Focus optimization efforts on: ${problematicLabels.slice(0, 3).map(l => l.label).join(', ')}</li>
+                            ` : ''}
+                            ${throughputDiff < 0 ? `
+                                <li><span class="recommendation-badge medium">Medium Priority</span> Throughput decreased. Verify server capacity and concurrent user handling.</li>
+                            ` : ''}
+                            ${errorRateDiff < 0 && responseTimeDiff < 0 ? `
+                                <li><span class="recommendation-badge low">Good</span> Both error rate and response time improved. Document recent changes for future reference.</li>
+                            ` : ''}
+                            ${Math.abs(errorRateDiff) < 0.5 && Math.abs(responseTimeDiff) < stats1.avgResponseTime * 0.1 ? `
+                                <li><span class="recommendation-badge low">Good</span> Performance is stable. Continue monitoring for any trends.</li>
+                            ` : ''}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateOverallComparisonTable(stats1, stats2) {
+            const rows = [
+                {
+                    metric: 'Total Requests',
+                    report1: stats1.totalRequests.toLocaleString(),
+                    report2: stats2.totalRequests.toLocaleString(),
+                    diff: stats2.totalRequests - stats1.totalRequests,
+                    unit: 'requests',
+                    lowerIsBetter: false
+                },
+                {
+                    metric: 'Success Count',
+                    report1: stats1.successCount.toLocaleString(),
+                    report2: stats2.successCount.toLocaleString(),
+                    diff: stats2.successCount - stats1.successCount,
+                    unit: 'requests',
+                    lowerIsBetter: false
+                },
+                {
+                    metric: 'Error Count',
+                    report1: stats1.errorCount.toLocaleString(),
+                    report2: stats2.errorCount.toLocaleString(),
+                    diff: stats2.errorCount - stats1.errorCount,
+                    unit: 'errors',
+                    lowerIsBetter: true
+                },
+                {
+                    metric: 'Error Rate',
+                    report1: stats1.errorRate + '%',
+                    report2: stats2.errorRate + '%',
+                    diff: stats2.errorRate - stats1.errorRate,
+                    unit: '%',
+                    lowerIsBetter: true
+                },
+                {
+                    metric: 'Avg Response Time',
+                    report1: Math.round(stats1.avgResponseTime) + ' ms',
+                    report2: Math.round(stats2.avgResponseTime) + ' ms',
+                    diff: stats2.avgResponseTime - stats1.avgResponseTime,
+                    unit: 'ms',
+                    lowerIsBetter: true
+                },
+                {
+                    metric: 'Min Response Time',
+                    report1: Math.round(stats1.minResponseTime) + ' ms',
+                    report2: Math.round(stats2.minResponseTime) + ' ms',
+                    diff: stats2.minResponseTime - stats1.minResponseTime,
+                    unit: 'ms',
+                    lowerIsBetter: true
+                },
+                {
+                    metric: 'Max Response Time',
+                    report1: Math.round(stats1.maxResponseTime) + ' ms',
+                    report2: Math.round(stats2.maxResponseTime) + ' ms',
+                    diff: stats2.maxResponseTime - stats1.maxResponseTime,
+                    unit: 'ms',
+                    lowerIsBetter: true
+                },
+                {
+                    metric: 'Throughput',
+                    report1: stats1.throughput + ' req/s',
+                    report2: stats2.throughput + ' req/s',
+                    diff: stats2.throughput - stats1.throughput,
+                    unit: 'req/s',
+                    lowerIsBetter: false
+                }
+            ];
+
+            return `
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th class="metric-col">Metric</th>
+                            <th class="report1-col">Report 1</th>
+                            <th class="report2-col">Report 2</th>
+                            <th class="diff-col">Difference</th>
+                            <th class="diff-col">Variation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(row => {
+                            let diffClass = 'diff-neutral';
+                            let variationClass = 'neutral';
+                            let arrow = 'arrow-equal';
+                            
+                            if (row.diff !== 0) {
+                                if (row.lowerIsBetter) {
+                                    diffClass = row.diff < 0 ? 'diff-positive' : 'diff-negative';
+                                    variationClass = row.diff < 0 ? 'improved' : 'degraded';
+                                    arrow = row.diff < 0 ? 'arrow-down' : 'arrow-up';
+                                } else {
+                                    diffClass = row.diff > 0 ? 'diff-positive' : 'diff-negative';
+                                    variationClass = row.diff > 0 ? 'improved' : 'degraded';
+                                    arrow = row.diff > 0 ? 'arrow-up' : 'arrow-down';
+                                }
+                            }
+
+                            const percentChange = typeof row.diff === 'number' && row.report1 !== '0' && row.unit !== 'requests' && row.unit !== 'errors'
+                                ? Math.abs((row.diff / parseFloat(row.report1)) * 100).toFixed(1)
+                                : null;
+
+                            return `
+                                <tr>
+                                    <td><strong>${row.metric}</strong></td>
+                                    <td>${row.report1}</td>
+                                    <td>${row.report2}</td>
+                                    <td class="${diffClass}">
+                                        <span class="${arrow}">${row.diff >= 0 ? '+' : ''}${typeof row.diff === 'number' ? row.diff.toFixed(2) : row.diff} ${row.unit}</span>
+                                    </td>
+                                    <td>
+                                        <span class="variation-indicator ${variationClass}">
+                                            ${percentChange ? percentChange + '% ' : ''}
+                                            ${variationClass === 'improved' ? '✓ Better' : variationClass === 'degraded' ? '⚠ Worse' : '→ Same'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function generateLabelComparisonTable(stats1, stats2) {
+            const allLabels = new Set([...Object.keys(stats1.labelStats), ...Object.keys(stats2.labelStats)]);
+            const rows = [];
+
+            allLabels.forEach(label => {
+                const data1 = stats1.labelStats[label];
+                const data2 = stats2.labelStats[label];
+
+                if (data1 && data2) {
+                    const timeDiff = data2.avgTime - data1.avgTime;
+                    const percentChange = ((timeDiff / data1.avgTime) * 100);
+                    
+                    rows.push({
+                        label,
+                        report1Time: data1.avgTime,
+                        report2Time: data2.avgTime,
+                        report1Count: data1.count,
+                        report2Count: data2.count,
+                        report1Errors: data1.errors,
+                        report2Errors: data2.errors,
+                        timeDiff,
+                        percentChange
+                    });
+                }
+            });
+
+            rows.sort((a, b) => Math.abs(b.percentChange) - Math.abs(a.percentChange));
+
+            return `
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th class="metric-col">Request Label</th>
+                            <th class="report1-col">Report 1 Avg Time</th>
+                            <th class="report2-col">Report 2 Avg Time</th>
+                            <th class="diff-col">Time Difference</th>
+                            <th class="diff-col">% Change</th>
+                            <th>Report 1 Count</th>
+                            <th>Report 2 Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(row => {
+                            let diffClass = 'diff-neutral';
+                            let arrow = 'arrow-equal';
+                            
+                            if (row.timeDiff < 0) {
+                                diffClass = 'diff-positive';
+                                arrow = 'arrow-down';
+                            } else if (row.timeDiff > 0) {
+                                diffClass = 'diff-negative';
+                                arrow = 'arrow-up';
+                            }
+
+                            return `
+                                <tr>
+                                    <td><strong>${row.label}</strong></td>
+                                    <td>${Math.round(row.report1Time)} ms</td>
+                                    <td>${Math.round(row.report2Time)} ms</td>
+                                    <td class="${diffClass}">
+                                        <span class="${arrow}">${row.timeDiff >= 0 ? '+' : ''}${Math.round(row.timeDiff)} ms</span>
+                                    </td>
+                                    <td class="${diffClass}">
+                                        <strong>${row.percentChange >= 0 ? '+' : ''}${row.percentChange.toFixed(1)}%</strong>
+                                    </td>
+                                    <td>${row.report1Count} (${row.report1Errors} errors)</td>
+                                    <td>${row.report2Count} (${row.report2Errors} errors)</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function generateErrorComparisonTable(stats1, stats2) {
+            const allErrors = new Set([...Object.keys(stats1.errors), ...Object.keys(stats2.errors)]);
+            const rows = [];
+
+            allErrors.forEach(error => {
+                const count1 = stats1.errors[error] || 0;
+                const count2 = stats2.errors[error] || 0;
+                rows.push({
+                    error,
+                    report1: count1,
+                    report2: count2,
+                    diff: count2 - count1
+                });
+            });
+
+            rows.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+
+            return `
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th class="metric-col">Error Type</th>
+                            <th class="report1-col">Report 1 Count</th>
+                            <th class="report2-col">Report 2 Count</th>
+                            <th class="diff-col">Difference</th>
+                            <th class="diff-col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.slice(0, 15).map(row => {
+                            let diffClass = 'diff-neutral';
+                            let statusClass = 'neutral';
+                            let statusText = 'Same';
+                            let arrow = 'arrow-equal';
+                            
+                            if (row.diff < 0) {
+                                diffClass = 'diff-positive';
+                                statusClass = 'improved';
+                                statusText = 'Improved';
+                                arrow = 'arrow-down';
+                            } else if (row.diff > 0) {
+                                diffClass = 'diff-negative';
+                                statusClass = 'degraded';
+                                statusText = 'Increased';
+                                arrow = 'arrow-up';
+                            }
+
+                            return `
+                                <tr>
+                                    <td>${row.error.substring(0, 60)}${row.error.length > 60 ? '...' : ''}</td>
+                                    <td>${row.report1}</td>
+                                    <td>${row.report2}</td>
+                                    <td class="${diffClass}">
+                                        <span class="${arrow}">${row.diff >= 0 ? '+' : ''}${row.diff}</span>
+                                    </td>
+                                    <td>
+                                        <span class="variation-indicator ${statusClass}">${statusText}</span>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderResponseTimeComparisonChart(stats1, stats2) {
+            const ctx = document.getElementById('responseTimeComparisonChart');
+            if (!ctx) return;
+
+            const allLabels = new Set([...Object.keys(stats1.labelStats), ...Object.keys(stats2.labelStats)]);
+            const labels = Array.from(allLabels).slice(0, 10);
+
+            const data1 = labels.map(label => stats1.labelStats[label]?.avgTime || 0);
+            const data2 = labels.map(label => stats2.labelStats[label]?.avgTime || 0);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Report 1 Avg Response Time',
+                            data: data1,
+                            backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                            borderColor: '#667eea',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Report 2 Avg Response Time',
+                            data: data2,
+                            backgroundColor: 'rgba(72, 187, 120, 0.7)',
+                            borderColor: '#48bb78',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Response Time Comparison by Request Label'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Average Response Time (ms)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function processReportData(data) {
+            const stats = {
+                totalRequests: data.length,
+                successCount: 0,
+                errorCount: 0,
+                avgResponseTime: 0,
+                minResponseTime: Infinity,
+                maxResponseTime: 0,
+                avgLatency: 0,
+                throughput: 0,
+                errorRate: 0,
+                errors: {},
+                labelStats: {},
+                timelineData: [],
+                responseTimes: [],
+                percentiles: {},
+                errorsByCode: {},
+                rawData: data
+            };
+
+            let totalTime = 0;
+            let totalLatency = 0;
+            const timestamps = [];
+            const responseTimes = [];
+
+            data.forEach(row => {
+                const responseTime = row.elapsed || row.Latency || 0;
+                const latency = row.Latency || row.elapsed || 0;
+                const success = row.success === true || row.success === 'true' || row.responseCode === '200';
+                const label = row.label || row.Label || 'Unknown';
+                const responseCode = row.responseCode || row.ResponseCode || 'N/A';
+                const responseMessage = row.responseMessage || row.ResponseMessage || '';
+                const timestamp = row.timeStamp || row.TimeStamp || Date.now();
+
+                timestamps.push(timestamp);
+                responseTimes.push(responseTime);
+
+                if (success) {
+                    stats.successCount++;
+                } else {
+                    stats.errorCount++;
+                    const errorKey = `${responseCode}: ${responseMessage}`;
+                    stats.errors[errorKey] = (stats.errors[errorKey] || 0) + 1;
+                    
+                    // Track errors by response code
+                    stats.errorsByCode[responseCode] = (stats.errorsByCode[responseCode] || 0) + 1;
+                }
+
+                totalTime += responseTime;
+                totalLatency += latency;
+                stats.minResponseTime = Math.min(stats.minResponseTime, responseTime);
+                stats.maxResponseTime = Math.max(stats.maxResponseTime, responseTime);
+
+                if (!stats.labelStats[label]) {
+                    stats.labelStats[label] = {
+                        count: 0,
+                        errors: 0,
+                        totalTime: 0,
+                        avgTime: 0,
+                        minTime: Infinity,
+                        maxTime: 0,
+                        responseTimes: [],
+                        percentiles: {}
+                    };
+                }
+                stats.labelStats[label].count++;
+                stats.labelStats[label].totalTime += responseTime;
+                stats.labelStats[label].responseTimes.push(responseTime);
+                stats.labelStats[label].minTime = Math.min(stats.labelStats[label].minTime, responseTime);
+                stats.labelStats[label].maxTime = Math.max(stats.labelStats[label].maxTime, responseTime);
+                if (!success) stats.labelStats[label].errors++;
+            });
+
+            stats.avgResponseTime = totalTime / data.length;
+            stats.avgLatency = totalLatency / data.length;
+            stats.errorRate = (stats.errorCount / stats.totalRequests * 100).toFixed(2);
+            stats.responseTimes = responseTimes;
+            
+            // Calculate percentiles
+            const sortedTimes = [...responseTimes].sort((a, b) => a - b);
+            stats.percentiles = {
+                p50: calculatePercentile(sortedTimes, 50),
+                p75: calculatePercentile(sortedTimes, 75),
+                p90: calculatePercentile(sortedTimes, 90),
+                p95: calculatePercentile(sortedTimes, 95),
+                p99: calculatePercentile(sortedTimes, 99)
+            };
+            
+            // Calculate throughput (requests per second)
+            if (timestamps.length > 1) {
+                const duration = (Math.max(...timestamps) - Math.min(...timestamps)) / 1000;
+                stats.throughput = (stats.totalRequests / duration).toFixed(2);
+            }
+
+            // Calculate average time and percentiles for each label
+            Object.keys(stats.labelStats).forEach(label => {
+                const labelData = stats.labelStats[label];
+                labelData.avgTime = labelData.totalTime / labelData.count;
+                
+                const sortedLabelTimes = [...labelData.responseTimes].sort((a, b) => a - b);
+                labelData.percentiles = {
+                    p50: calculatePercentile(sortedLabelTimes, 50),
+                    p75: calculatePercentile(sortedLabelTimes, 75),
+                    p90: calculatePercentile(sortedLabelTimes, 90),
+                    p95: calculatePercentile(sortedLabelTimes, 95),
+                    p99: calculatePercentile(sortedLabelTimes, 99)
+                };
+            });
+
+            // Create timeline data (requests per time bucket)
+            const sortedTimestamps = timestamps.sort((a, b) => a - b);
+            const buckets = 20;
+            const bucketSize = (sortedTimestamps[sortedTimestamps.length - 1] - sortedTimestamps[0]) / buckets;
+            
+            for (let i = 0; i < buckets; i++) {
+                const bucketStart = sortedTimestamps[0] + (i * bucketSize);
+                const bucketEnd = bucketStart + bucketSize;
+                const count = sortedTimestamps.filter(t => t >= bucketStart && t < bucketEnd).length;
+                stats.timelineData.push({ bucket: i, count });
+            }
+
+            return stats;
+        }
+
+        function calculatePercentile(sortedArray, percentile) {
+            if (sortedArray.length === 0) return 0;
+            const index = (percentile / 100) * (sortedArray.length - 1);
+            const lower = Math.floor(index);
+            const upper = Math.ceil(index);
+            const weight = index % 1;
+            
+            if (lower === upper) {
+                return sortedArray[lower];
+            }
+            
+            return sortedArray[lower] * (1 - weight) + sortedArray[upper] * weight;
+        }
+
+        function renderSingleView(data) {
+            const dashboard = document.getElementById('dashboard');
+            const stats = processReportData(data);
+
+            dashboard.innerHTML = `
+                <div class="single-view">
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTab('overview')">Overview</button>
+                        <button class="tab" onclick="switchTab('errors')">Error Analysis</button>
+                        <button class="tab" onclick="switchTab('performance')">Performance</button>
+                        <button class="tab" onclick="switchTab('labels')">Request Labels</button>
+                        <button class="tab" onclick="switchTab('detailed')">Detailed Data</button>
+                        <button class="tab" onclick="switchTab('failures')">Failures Only</button>
+                    </div>
+
+                    <div id="overview" class="tab-content active">
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-label">Total Requests</div>
+                                <div class="metric-value">${stats.totalRequests.toLocaleString()}</div>
+                                <div class="metric-subtitle">All samples processed</div>
+                            </div>
+                            <div class="metric-card error">
+                                <div class="metric-label">Error Rate</div>
+                                <div class="metric-value">${stats.errorRate}%</div>
+                                <div class="metric-subtitle">${stats.errorCount} failed requests</div>
+                            </div>
+                            <div class="metric-card success">
+                                <div class="metric-label">Success Rate</div>
+                                <div class="metric-value">${(100 - stats.errorRate).toFixed(2)}%</div>
+                                <div class="metric-subtitle">${stats.successCount} successful requests</div>
+                            </div>
+                            <div class="metric-card performance">
+                                <div class="metric-label">Avg Response Time</div>
+                                <div class="metric-value">${Math.round(stats.avgResponseTime)} ms</div>
+                                <div class="metric-subtitle">Throughput: ${stats.throughput} req/s</div>
+                            </div>
+                        </div>
+
+                        <div class="data-table-container">
+                            <h3 style="margin-bottom: 15px; color: #2d3748;">Response Time Percentiles</h3>
+                            <div class="percentile-stats">
+                                <div class="percentile-card">
+                                    <div class="percentile-label">50th Percentile (Median)</div>
+                                    <div class="percentile-value">${Math.round(stats.percentiles.p50)} ms</div>
+                                </div>
+                                <div class="percentile-card">
+                                    <div class="percentile-label">75th Percentile</div>
+                                    <div class="percentile-value">${Math.round(stats.percentiles.p75)} ms</div>
+                                </div>
+                                <div class="percentile-card">
+                                    <div class="percentile-label">90th Percentile</div>
+                                    <div class="percentile-value">${Math.round(stats.percentiles.p90)} ms</div>
+                                </div>
+                                <div class="percentile-card">
+                                    <div class="percentile-label">95th Percentile</div>
+                                    <div class="percentile-value">${Math.round(stats.percentiles.p95)} ms</div>
+                                </div>
+                                <div class="percentile-card">
+                                    <div class="percentile-label">99th Percentile</div>
+                                    <div class="percentile-value">${Math.round(stats.percentiles.p99)} ms</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">Success vs Errors</div>
+                            <canvas id="pieChart"></canvas>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">Request Timeline</div>
+                            <canvas id="timelineChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div id="errors" class="tab-content">
+                        <div class="metrics-grid">
+                            <div class="metric-card error">
+                                <div class="metric-label">Total Errors</div>
+                                <div class="metric-value">${stats.errorCount}</div>
+                                <div class="metric-subtitle">${Object.keys(stats.errors).length} unique error types</div>
+                            </div>
+                            <div class="metric-card error">
+                                <div class="metric-label">Error Rate</div>
+                                <div class="metric-value">${stats.errorRate}%</div>
+                                <div class="metric-subtitle">Of all requests</div>
+                            </div>
+                        </div>
+
+                        <div class="data-table-container">
+                            <h3 style="margin-bottom: 15px; color: #2d3748;">Errors by Response Code</h3>
+                            <div class="stats-grid">
+                                ${Object.entries(stats.errorsByCode)
+                                    .sort((a, b) => b[1] - a[1])
+                                    .map(([code, count]) => `
+                                        <div class="stat-card">
+                                            <div class="stat-card-label">HTTP ${code}</div>
+                                            <div class="stat-card-value">${count}</div>
+                                        </div>
+                                    `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">Error Distribution</div>
+                            <canvas id="errorChart"></canvas>
+                        </div>
+
+                        <div class="error-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Error Message</th>
+                                        <th>Count</th>
+                                        <th>Percentage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${Object.entries(stats.errors)
+                                        .sort((a, b) => b[1] - a[1])
+                                        .map(([error, count]) => `
+                                            <tr>
+                                                <td>${error}</td>
+                                                <td><span class="error-count">${count}</span></td>
+                                                <td>${((count / stats.errorCount) * 100).toFixed(2)}%</td>
+                                            </tr>
+                                        `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="performance" class="tab-content">
+                        <div class="metrics-grid">
+                            <div class="metric-card performance">
+                                <div class="metric-label">Average Response</div>
+                                <div class="metric-value">${Math.round(stats.avgResponseTime)} ms</div>
+                            </div>
+                            <div class="metric-card performance">
+                                <div class="metric-label">Min Response</div>
+                                <div class="metric-value">${Math.round(stats.minResponseTime)} ms</div>
+                            </div>
+                            <div class="metric-card performance">
+                                <div class="metric-label">Max Response</div>
+                                <div class="metric-value">${Math.round(stats.maxResponseTime)} ms</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Throughput</div>
+                                <div class="metric-value">${stats.throughput}</div>
+                                <div class="metric-subtitle">requests/second</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-container">
+                            <div class="chart-title">Response Time by Label</div>
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div id="labels" class="tab-content">
+                        ${renderLabelAnalysis(stats)}
+                    </div>
+
+                    <div id="detailed" class="tab-content">
+                        ${renderDetailedDataTable(stats)}
+                    </div>
+
+                    <div id="failures" class="tab-content">
+                        ${renderFailuresTable(stats)}
+                    </div>
+                </div>
+            `;
+
+            // Render charts
+            setTimeout(() => {
+                renderPieChart(stats);
+                renderTimelineChart(stats);
+                renderErrorChart(stats);
+                renderPerformanceChart(stats);
+            }, 100);
+        }
+
+        function renderLabelAnalysis(stats) {
+            return `
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <div class="table-title">Request Label Performance Analysis</div>
+                    </div>
+                    <div class="data-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" onclick="sortTable('labels', 0)">Request Label</th>
+                                    <th class="sortable" onclick="sortTable('labels', 1)">Total</th>
+                                    <th class="sortable" onclick="sortTable('labels', 2)">Errors</th>
+                                    <th class="sortable" onclick="sortTable('labels', 3)">Error Rate</th>
+                                    <th class="sortable" onclick="sortTable('labels', 4)">Avg Response</th>
+                                    <th class="sortable" onclick="sortTable('labels', 5)">Min</th>
+                                    <th class="sortable" onclick="sortTable('labels', 6)">Max</th>
+                                    <th class="sortable" onclick="sortTable('labels', 7)">P50</th>
+                                    <th class="sortable" onclick="sortTable('labels', 8)">P90</th>
+                                    <th class="sortable" onclick="sortTable('labels', 9)">P95</th>
+                                    <th class="sortable" onclick="sortTable('labels', 10)">P99</th>
+                                </tr>
+                            </thead>
+                            <tbody id="labelsTableBody">
+                                ${Object.entries(stats.labelStats)
+                                    .sort((a, b) => b[1].count - a[1].count)
+                                    .map(([label, data]) => `
+                                        <tr>
+                                            <td><strong>${label}</strong></td>
+                                            <td>${data.count}</td>
+                                            <td><span class="error-count">${data.errors}</span></td>
+                                            <td>${((data.errors / data.count) * 100).toFixed(2)}%</td>
+                                            <td>${Math.round(data.avgTime)} ms</td>
+                                            <td>${Math.round(data.minTime)} ms</td>
+                                            <td>${Math.round(data.maxTime)} ms</td>
+                                            <td>${Math.round(data.percentiles.p50)} ms</td>
+                                            <td>${Math.round(data.percentiles.p90)} ms</td>
+                                            <td>${Math.round(data.percentiles.p95)} ms</td>
+                                            <td>${Math.round(data.percentiles.p99)} ms</td>
+                                        </tr>
+                                    `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        let currentPage = 1;
+        let rowsPerPage = 100;
+        let filteredData = [];
+        let currentFilters = {};
+
+        function renderDetailedDataTable(stats) {
+            filteredData = stats.rawData;
+            const uniqueLabels = [...new Set(stats.rawData.map(r => r.label || r.Label || 'Unknown'))];
+            const uniqueCodes = [...new Set(stats.rawData.map(r => r.responseCode || r.ResponseCode || 'N/A'))];
+
+            return `
+                <div class="filters-section">
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <label>Request Label</label>
+                            <select id="filterLabel">
+                                <option value="">All Labels</option>
+                                ${uniqueLabels.map(label => `<option value="${label}">${label}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Response Code</label>
+                            <select id="filterCode">
+                                <option value="">All Codes</option>
+                                ${uniqueCodes.map(code => `<option value="${code}">${code}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Status</label>
+                            <select id="filterStatus">
+                                <option value="">All</option>
+                                <option value="success">Success Only</option>
+                                <option value="error">Errors Only</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Min Response Time (ms)</label>
+                            <input type="number" id="filterMinTime" placeholder="0">
+                        </div>
+                        <div class="filter-group">
+                            <label>Max Response Time (ms)</label>
+                            <input type="number" id="filterMaxTime" placeholder="Any">
+                        </div>
+                        <div class="filter-group">
+                            <label>Search</label>
+                            <input type="text" id="filterSearch" placeholder="Search in any field...">
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn-reset" onclick="resetFilters()">Reset Filters</button>
+                        <button class="btn-filter" onclick="applyFilters()">Apply Filters</button>
+                        <button class="btn-export" onclick="exportToCSV()">Export to CSV</button>
+                    </div>
+                </div>
+
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <div class="table-title">All Requests - Detailed View</div>
+                        <div class="table-controls">
+                            <select onchange="changeRowsPerPage(this.value)" style="padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px;">
+                                <option value="50">50 rows</option>
+                                <option value="100" selected>100 rows</option>
+                                <option value="500">500 rows</option>
+                                <option value="1000">1000 rows</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="data-table-wrapper">
+                        <table class="data-table" id="detailedTable">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" onclick="sortTable('detailed', 0)">#</th>
+                                    <th class="sortable" onclick="sortTable('detailed', 1)">Label</th>
+                                    <th class="sortable" onclick="sortTable('detailed', 2)">Response Code</th>
+                                    <th class="sortable" onclick="sortTable('detailed', 3)">Response Time (ms)</th>
+                                    <th class="sortable" onclick="sortTable('detailed', 4)">Latency (ms)</th>
+                                    <th class="sortable" onclick="sortTable('detailed', 5)">Status</th>
+                                    <th class="sortable" onclick="sortTable('detailed', 6)">Response Message</th>
+                                    <th class="sortable" onclick="sortTable('detailed', 7)">Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailedTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="pagination"></div>
+                </div>
+            `;
+        }
+
+        function renderFailuresTable(stats) {
+            const failures = stats.rawData.filter(row => {
+                const success = row.success === true || row.success === 'true' || row.responseCode === '200';
+                return !success;
+            });
+
+            const uniqueLabels = [...new Set(failures.map(r => r.label || r.Label || 'Unknown'))];
+            const uniqueCodes = [...new Set(failures.map(r => r.responseCode || r.ResponseCode || 'N/A'))];
+
+            return `
+                <div class="filters-section">
+                    <div class="metrics-grid" style="margin-bottom: 20px;">
+                        <div class="metric-card error">
+                            <div class="metric-label">Total Failures</div>
+                            <div class="metric-value">${failures.length}</div>
+                        </div>
+                        <div class="metric-card error">
+                            <div class="metric-label">Unique Error Types</div>
+                            <div class="metric-value">${Object.keys(stats.errors).length}</div>
+                        </div>
+                        <div class="metric-card error">
+                            <div class="metric-label">Error Rate</div>
+                            <div class="metric-value">${stats.errorRate}%</div>
+                        </div>
+                    </div>
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <label>Request Label</label>
+                            <select id="failureFilterLabel">
+                                <option value="">All Labels</option>
+                                ${uniqueLabels.map(label => `<option value="${label}">${label}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Response Code</label>
+                            <select id="failureFilterCode">
+                                <option value="">All Codes</option>
+                                ${uniqueCodes.map(code => `<option value="${code}">${code}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Search</label>
+                            <input type="text" id="failureFilterSearch" placeholder="Search in any field...">
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn-reset" onclick="resetFailureFilters()">Reset Filters</button>
+                        <button class="btn-filter" onclick="applyFailureFilters()">Apply Filters</button>
+                        <button class="btn-export" onclick="exportFailuresToCSV()">Export Failures</button>
+                    </div>
+                </div>
+
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <div class="table-title">Failed Requests Analysis</div>
+                    </div>
+                    <div class="data-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Label</th>
+                                    <th>Response Code</th>
+                                    <th>Response Time (ms)</th>
+                                    <th>Response Message</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="failuresTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="failuresPagination"></div>
+                </div>
+            `;
+        }
+
+        function renderTablePage(data, page, container) {
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageData = data.slice(start, end);
+            
+            const tbody = document.getElementById(container);
+            if (!tbody) return;
+
+            tbody.innerHTML = pageData.map((row, idx) => {
+                const responseTime = row.elapsed || row.Latency || 0;
+                const latency = row.Latency || row.elapsed || 0;
+                const success = row.success === true || row.success === 'true' || row.responseCode === '200';
+                const label = row.label || row.Label || 'Unknown';
+                const responseCode = row.responseCode || row.ResponseCode || 'N/A';
+                const responseMessage = row.responseMessage || row.ResponseMessage || '';
+                const timestamp = row.timeStamp || row.TimeStamp || '';
+                const rowClass = success ? '' : 'error-row';
+
+                return `
+                    <tr class="${rowClass}">
+                        <td>${start + idx + 1}</td>
+                        <td>${label}</td>
+                        <td><span class="status-badge ${success ? 'success' : 'error'}">${responseCode}</span></td>
+                        <td>${Math.round(responseTime)}</td>
+                        <td>${Math.round(latency)}</td>
+                        <td><span class="status-badge ${success ? 'success' : 'error'}">${success ? 'Success' : 'Failed'}</span></td>
+                        <td>${responseMessage}</td>
+                        <td>${new Date(timestamp).toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            renderPagination(data.length, page, 'pagination');
+        }
+
+        function renderPagination(totalRows, currentPage, containerId) {
+            const totalPages = Math.ceil(totalRows / rowsPerPage);
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            let paginationHTML = `
+                <div class="pagination-info">
+                    Showing ${((currentPage - 1) * rowsPerPage) + 1} to ${Math.min(currentPage * rowsPerPage, totalRows)} of ${totalRows.toLocaleString()} entries
+                </div>
+                <div class="pagination-controls">
+                    <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+            `;
+
+            // Show page numbers
+            const maxButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+            if (endPage - startPage < maxButtons - 1) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `
+                    <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>
+                `;
+            }
+
+            paginationHTML += `
+                    <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+                </div>
+            `;
+
+            container.innerHTML = paginationHTML;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            renderTablePage(filteredData, currentPage, 'detailedTableBody');
+        }
+
+        function changeRowsPerPage(rows) {
+            rowsPerPage = parseInt(rows);
+            currentPage = 1;
+            renderTablePage(filteredData, currentPage, 'detailedTableBody');
+        }
+
+        function applyFilters() {
+            const stats = processReportData(report1Data);
+            let data = [...stats.rawData];
+
+            const labelFilter = document.getElementById('filterLabel')?.value;
+            const codeFilter = document.getElementById('filterCode')?.value;
+            const statusFilter = document.getElementById('filterStatus')?.value;
+            const minTime = document.getElementById('filterMinTime')?.value;
+            const maxTime = document.getElementById('filterMaxTime')?.value;
+            const searchFilter = document.getElementById('filterSearch')?.value.toLowerCase();
+
+            if (labelFilter) {
+                data = data.filter(row => (row.label || row.Label) === labelFilter);
+            }
+
+            if (codeFilter) {
+                data = data.filter(row => (row.responseCode || row.ResponseCode) === codeFilter);
+            }
+
+            if (statusFilter === 'success') {
+                data = data.filter(row => row.success === true || row.success === 'true' || row.responseCode === '200');
+            } else if (statusFilter === 'error') {
+                data = data.filter(row => !(row.success === true || row.success === 'true' || row.responseCode === '200'));
+            }
+
+            if (minTime) {
+                data = data.filter(row => (row.elapsed || row.Latency || 0) >= parseInt(minTime));
+            }
+
+            if (maxTime) {
+                data = data.filter(row => (row.elapsed || row.Latency || 0) <= parseInt(maxTime));
+            }
+
+            if (searchFilter) {
+                data = data.filter(row => {
+                    const searchString = JSON.stringify(row).toLowerCase();
+                    return searchString.includes(searchFilter);
+                });
+            }
+
+            filteredData = data;
+            currentPage = 1;
+            renderTablePage(filteredData, currentPage, 'detailedTableBody');
+        }
+
+        function resetFilters() {
+            const filterLabel = document.getElementById('filterLabel');
+            const filterCode = document.getElementById('filterCode');
+            const filterStatus = document.getElementById('filterStatus');
+            const filterMinTime = document.getElementById('filterMinTime');
+            const filterMaxTime = document.getElementById('filterMaxTime');
+            const filterSearch = document.getElementById('filterSearch');
+            
+            if (filterLabel) filterLabel.value = '';
+            if (filterCode) filterCode.value = '';
+            if (filterStatus) filterStatus.value = '';
+            if (filterMinTime) filterMinTime.value = '';
+            if (filterMaxTime) filterMaxTime.value = '';
+            if (filterSearch) filterSearch.value = '';
+            
+            applyFilters();
+        }
+
+        // Add enter key support for search
+        document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const activeElement = document.activeElement;
+                    if (activeElement && (activeElement.id === 'filterSearch' || activeElement.id === 'filterMinTime' || activeElement.id === 'filterMaxTime')) {
+                        applyFilters();
+                    } else if (activeElement && activeElement.id === 'failureFilterSearch') {
+                        applyFailureFilters();
+                    }
+                }
+            });
+        });
+
+        let failureFilteredData = [];
+        let failureCurrentPage = 1;
+
+        function applyFailureFilters() {
+            const stats = processReportData(report1Data);
+            let data = stats.rawData.filter(row => {
+                const success = row.success === true || row.success === 'true' || row.responseCode === '200';
+                return !success;
+            });
+
+            const labelFilter = document.getElementById('failureFilterLabel')?.value;
+            const codeFilter = document.getElementById('failureFilterCode')?.value;
+            const searchFilter = document.getElementById('failureFilterSearch')?.value.toLowerCase();
+
+            if (labelFilter) {
+                data = data.filter(row => (row.label || row.Label) === labelFilter);
+            }
+
+            if (codeFilter) {
+                data = data.filter(row => (row.responseCode || row.ResponseCode) === codeFilter);
+            }
+
+            if (searchFilter) {
+                data = data.filter(row => {
+                    const searchString = JSON.stringify(row).toLowerCase();
+                    return searchString.includes(searchFilter);
+                });
+            }
+
+            failureFilteredData = data;
+            failureCurrentPage = 1;
+            renderFailuresTablePage(failureFilteredData, failureCurrentPage);
+        }
+
+        function resetFailureFilters() {
+            const filterLabel = document.getElementById('failureFilterLabel');
+            const filterCode = document.getElementById('failureFilterCode');
+            const filterSearch = document.getElementById('failureFilterSearch');
+            
+            if (filterLabel) filterLabel.value = '';
+            if (filterCode) filterCode.value = '';
+            if (filterSearch) filterSearch.value = '';
+            
+            applyFailureFilters();
+        }
+
+        function renderFailuresTablePage(data, page) {
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageData = data.slice(start, end);
+            
+            const tbody = document.getElementById('failuresTableBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = pageData.map((row, idx) => {
+                const responseTime = row.elapsed || row.Latency || 0;
+                const label = row.label || row.Label || 'Unknown';
+                const responseCode = row.responseCode || row.ResponseCode || 'N/A';
+                const responseMessage = row.responseMessage || row.ResponseMessage || '';
+                const timestamp = row.timeStamp || row.TimeStamp || '';
+
+                return `
+                    <tr class="error-row">
+                        <td>${start + idx + 1}</td>
+                        <td>${label}</td>
+                        <td><span class="status-badge error">${responseCode}</span></td>
+                        <td>${Math.round(responseTime)}</td>
+                        <td>${responseMessage}</td>
+                        <td>${new Date(timestamp).toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            renderPagination(data.length, page, 'failuresPagination');
+        }
+
+        function exportToCSV() {
+            const headers = ['#', 'Label', 'Response Code', 'Response Time (ms)', 'Latency (ms)', 'Status', 'Response Message', 'Timestamp'];
+            const csvContent = [
+                headers.join(','),
+                ...filteredData.map((row, idx) => {
+                    const responseTime = row.elapsed || row.Latency || 0;
+                    const latency = row.Latency || row.elapsed || 0;
+                    const success = row.success === true || row.success === 'true' || row.responseCode === '200';
+                    const label = (row.label || row.Label || 'Unknown').replace(/,/g, ';');
+                    const responseCode = row.responseCode || row.ResponseCode || 'N/A';
+                    const responseMessage = (row.responseMessage || row.ResponseMessage || '').replace(/,/g, ';');
+                    const timestamp = row.timeStamp || row.TimeStamp || '';
+
+                    return [idx + 1, label, responseCode, Math.round(responseTime), Math.round(latency), success ? 'Success' : 'Failed', responseMessage, timestamp].join(',');
+                })
+            ].join('\n');
+
+            downloadCSV(csvContent, 'jmeter-detailed-export.csv');
+        }
+
+        function exportFailuresToCSV() {
+            const headers = ['#', 'Label', 'Response Code', 'Response Time (ms)', 'Response Message', 'Timestamp'];
+            const csvContent = [
+                headers.join(','),
+                ...failureFilteredData.map((row, idx) => {
+                    const responseTime = row.elapsed || row.Latency || 0;
+                    const label = (row.label || row.Label || 'Unknown').replace(/,/g, ';');
+                    const responseCode = row.responseCode || row.ResponseCode || 'N/A';
+                    const responseMessage = (row.responseMessage || row.ResponseMessage || '').replace(/,/g, ';');
+                    const timestamp = row.timeStamp || row.TimeStamp || '';
+
+                    return [idx + 1, label, responseCode, Math.round(responseTime), responseMessage, timestamp].join(',');
+                })
+            ].join('\n');
+
+            downloadCSV(csvContent, 'jmeter-failures-export.csv');
+        }
+
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function sortTable(tableId, colIndex) {
+            // Table sorting implementation can be added here
+            console.log('Sorting table:', tableId, 'by column:', colIndex);
+        }
+
+        function renderComparisonView() {
+            const dashboard = document.getElementById('dashboard');
+            const stats1 = processReportData(report1Data);
+            const stats2 = processReportData(report2Data);
+
+            dashboard.innerHTML = `
+                <div class="comparison-mode">
+                    <div class="report-column">
+                        ${renderReportColumn(stats1, 1)}
+                    </div>
+                    <div class="report-column">
+                        ${renderReportColumn(stats2, 2)}
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                renderComparisonCharts(stats1, stats2);
+            }, 100);
+        }
+
+        function renderReportColumn(stats, reportNum) {
+            return `
+                <div class="report-header">
+                    <h2>Report ${reportNum}</h2>
+                    <span class="report-badge ${reportNum === 2 ? 'report-2' : ''}">Analysis</span>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Requests</div>
+                        <div class="metric-value">${stats.totalRequests.toLocaleString()}</div>
+                    </div>
+                    <div class="metric-card error">
+                        <div class="metric-label">Error Rate</div>
+                        <div class="metric-value">${stats.errorRate}%</div>
+                        <div class="metric-subtitle">${stats.errorCount} errors</div>
+                    </div>
+                    <div class="metric-card success">
+                        <div class="metric-label">Success Rate</div>
+                        <div class="metric-value">${(100 - stats.errorRate).toFixed(2)}%</div>
+                    </div>
+                    <div class="metric-card performance">
+                        <div class="metric-label">Avg Response</div>
+                        <div class="metric-value">${Math.round(stats.avgResponseTime)} ms</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Success vs Errors</div>
+                    <canvas id="pieChart${reportNum}"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Top Errors</div>
+                    <canvas id="errorChart${reportNum}"></canvas>
+                </div>
+
+                <div class="error-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Error Type</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(stats.errors)
+                                .sort((a, b) => b[1] - a[1])
+                                .slice(0, 5)
+                                .map(([error, count]) => `
+                                    <tr>
+                                        <td>${error.substring(0, 50)}${error.length > 50 ? '...' : ''}</td>
+                                        <td><span class="error-count">${count}</span></td>
+                                    </tr>
+                                `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderPieChart(stats) {
+            const ctx = document.getElementById('pieChart');
+            if (!ctx) return;
+
+            if (charts.pieChart) charts.pieChart.destroy();
+
+            charts.pieChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Success', 'Errors'],
+                    datasets: [{
+                        data: [stats.successCount, stats.errorCount],
+                        backgroundColor: ['#48bb78', '#f56565'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTimelineChart(stats) {
+            const ctx = document.getElementById('timelineChart');
+            if (!ctx) return;
+
+            if (charts.timelineChart) charts.timelineChart.destroy();
+
+            charts.timelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: stats.timelineData.map(d => `T${d.bucket}`),
+                    datasets: [{
+                        label: 'Requests',
+                        data: stats.timelineData.map(d => d.count),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderErrorChart(stats) {
+            const ctx = document.getElementById('errorChart');
+            if (!ctx) return;
+
+            if (charts.errorChart) charts.errorChart.destroy();
+
+            const topErrors = Object.entries(stats.errors)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            charts.errorChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topErrors.map(([error]) => error.substring(0, 30) + '...'),
+                    datasets: [{
+                        label: 'Error Count',
+                        data: topErrors.map(([, count]) => count),
+                        backgroundColor: '#f56565'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderPerformanceChart(stats) {
+            const ctx = document.getElementById('performanceChart');
+            if (!ctx) return;
+
+            if (charts.performanceChart) charts.performanceChart.destroy();
+
+            const labels = Object.entries(stats.labelStats)
+                .sort((a, b) => b[1].avgTime - a[1].avgTime)
+                .slice(0, 10);
+
+            charts.performanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map(([label]) => label),
+                    datasets: [{
+                        label: 'Avg Response Time (ms)',
+                        data: labels.map(([, data]) => Math.round(data.avgTime)),
+                        backgroundColor: '#ed8936'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderComparisonCharts(stats1, stats2) {
+            // Report 1 charts
+            const ctx1Pie = document.getElementById('pieChart1');
+            if (ctx1Pie) {
+                new Chart(ctx1Pie, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Success', 'Errors'],
+                        datasets: [{
+                            data: [stats1.successCount, stats1.errorCount],
+                            backgroundColor: ['#48bb78', '#f56565'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+
+            const ctx1Error = document.getElementById('errorChart1');
+            if (ctx1Error) {
+                const topErrors1 = Object.entries(stats1.errors).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                new Chart(ctx1Error, {
+                    type: 'bar',
+                    data: {
+                        labels: topErrors1.map(([error]) => error.substring(0, 20) + '...'),
+                        datasets: [{
+                            label: 'Count',
+                            data: topErrors1.map(([, count]) => count),
+                            backgroundColor: '#f56565'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        indexAxis: 'y',
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // Report 2 charts
+            const ctx2Pie = document.getElementById('pieChart2');
+            if (ctx2Pie) {
+                new Chart(ctx2Pie, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Success', 'Errors'],
+                        datasets: [{
+                            data: [stats2.successCount, stats2.errorCount],
+                            backgroundColor: ['#48bb78', '#f56565'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+
+            const ctx2Error = document.getElementById('errorChart2');
+            if (ctx2Error) {
+                const topErrors2 = Object.entries(stats2.errors).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                new Chart(ctx2Error, {
+                    type: 'bar',
+                    data: {
+                        labels: topErrors2.map(([error]) => error.substring(0, 20) + '...'),
+                        datasets: [{
+                            label: 'Count',
+                            data: topErrors2.map(([, count]) => count),
+                            backgroundColor: '#f56565'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        indexAxis: 'y',
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        }
+
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.remove('active'));
+
+            // Find and activate the correct tab
+            const clickedTab = Array.from(tabs).find(tab => tab.textContent.toLowerCase().includes(tabName.toLowerCase()));
+            if (clickedTab) clickedTab.classList.add('active');
+            
+            const tabContent = document.getElementById(tabName);
+            if (tabContent) tabContent.classList.add('active');
+
+            // Initialize tables when switching to these tabs
+            if (tabName === 'detailed') {
+                setTimeout(() => {
+                    const stats = processReportData(report1Data);
+                    filteredData = stats.rawData;
+                    currentPage = 1;
+                    renderTablePage(filteredData, currentPage, 'detailedTableBody');
+                }, 100);
+            } else if (tabName === 'failures') {
+                setTimeout(() => {
+                    const stats = processReportData(report1Data);
+                    failureFilteredData = stats.rawData.filter(row => {
+                        const success = row.success === true || row.success === 'true' || row.responseCode === '200';
+                        return !success;
+                    });
+                    failureCurrentPage = 1;
+                    renderFailuresTablePage(failureFilteredData, failureCurrentPage);
+                }, 100);
+            }
+        }
+
+        let sortDirection = {};
+        
+        function sortTable(tableId, colIndex) {
+            const sortKey = `${tableId}-${colIndex}`;
+            sortDirection[sortKey] = sortDirection[sortKey] === 'asc' ? 'desc' : 'asc';
+            
+            if (tableId === 'labels') {
+                sortLabelsTable(colIndex, sortDirection[sortKey]);
+            } else if (tableId === 'detailed') {
+                sortDetailedTable(colIndex, sortDirection[sortKey]);
+            }
+        }
+
+        function sortLabelsTable(colIndex, direction) {
+            const tbody = document.getElementById('labelsTableBody');
+            if (!tbody) return;
+
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            rows.sort((a, b) => {
+                let aVal = a.cells[colIndex].textContent.trim();
+                let bVal = b.cells[colIndex].textContent.trim();
+                
+                // Try to parse as number
+                const aNum = parseFloat(aVal.replace(/[^0-9.-]/g, ''));
+                const bNum = parseFloat(bVal.replace(/[^0-9.-]/g, ''));
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return direction === 'asc' ? aNum - bNum : bNum - aNum;
+                }
+                
+                // String comparison
+                return direction === 'asc' 
+                    ? aVal.localeCompare(bVal) 
+                    : bVal.localeCompare(aVal);
+            });
+            
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+            
+            // Update sort indicators
+            const headers = tbody.closest('table').querySelectorAll('th');
+            headers.forEach((th, idx) => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (idx === colIndex) {
+                    th.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        function sortDetailedTable(colIndex, direction) {
+            // Sort the filteredData array
+            filteredData.sort((a, b) => {
+                let aVal, bVal;
+                
+                switch(colIndex) {
+                    case 0: // #
+                        return 0; // Don't sort index
+                    case 1: // Label
+                        aVal = a.label || a.Label || '';
+                        bVal = b.label || b.Label || '';
+                        break;
+                    case 2: // Response Code
+                        aVal = a.responseCode || a.ResponseCode || '';
+                        bVal = b.responseCode || b.ResponseCode || '';
+                        break;
+                    case 3: // Response Time
+                        aVal = a.elapsed || a.Latency || 0;
+                        bVal = b.elapsed || b.Latency || 0;
+                        return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    case 4: // Latency
+                        aVal = a.Latency || a.elapsed || 0;
+                        bVal = b.Latency || b.elapsed || 0;
+                        return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    case 5: // Status
+                        aVal = (a.success === true || a.success === 'true' || a.responseCode === '200') ? 1 : 0;
+                        bVal = (b.success === true || b.success === 'true' || b.responseCode === '200') ? 1 : 0;
+                        return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    case 6: // Response Message
+                        aVal = a.responseMessage || a.ResponseMessage || '';
+                        bVal = b.responseMessage || b.ResponseMessage || '';
+                        break;
+                    case 7: // Timestamp
+                        aVal = a.timeStamp || a.TimeStamp || 0;
+                        bVal = b.timeStamp || b.TimeStamp || 0;
+                        return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                
+                // String comparison
+                return direction === 'asc' 
+                    ? String(aVal).localeCompare(String(bVal))
+                    : String(bVal).localeCompare(String(aVal));
+            });
+            
+            renderTablePage(filteredData, currentPage, 'detailedTableBody');
+            
+            // Update sort indicators
+            const table = document.getElementById('detailedTable');
+            if (table) {
+                const headers = table.querySelectorAll('th');
+                headers.forEach((th, idx) => {
+                    th.classList.remove('sort-asc', 'sort-desc');
+                    if (idx === colIndex) {
+                        th.classList.add(direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                    }
+                });
+            }
+        }
+
+        function changeFailurePage(page) {
+            failureCurrentPage = page;
+            renderFailuresTablePage(failureFilteredData, failureCurrentPage);
+        }
+
+        function renderFailuresTablePage(data, page) {
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const pageData = data.slice(start, end);
+            
+            const tbody = document.getElementById('failuresTableBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = pageData.map((row, idx) => {
+                const responseTime = row.elapsed || row.Latency || 0;
+                const label = row.label || row.Label || 'Unknown';
+                const responseCode = row.responseCode || row.ResponseCode || 'N/A';
+                const responseMessage = row.responseMessage || row.ResponseMessage || '';
+                const timestamp = row.timeStamp || row.TimeStamp || '';
+
+                return `
+                    <tr class="error-row">
+                        <td>${start + idx + 1}</td>
+                        <td>${label}</td>
+                        <td><span class="status-badge error">${responseCode}</span></td>
+                        <td>${Math.round(responseTime)}</td>
+                        <td>${responseMessage}</td>
+                        <td>${new Date(timestamp).toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            renderFailuresPagination(data.length, page);
+        }
+
+        function renderFailuresPagination(totalRows, currentPage) {
+            const totalPages = Math.ceil(totalRows / rowsPerPage);
+            const container = document.getElementById('failuresPagination');
+            if (!container) return;
+
+            let paginationHTML = `
+                <div class="pagination-info">
+                    Showing ${((currentPage - 1) * rowsPerPage) + 1} to ${Math.min(currentPage * rowsPerPage, totalRows)} of ${totalRows.toLocaleString()} entries
+                </div>
+                <div class="pagination-controls">
+                    <button class="page-btn" onclick="changeFailurePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+            `;
+
+            const maxButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+            if (endPage - startPage < maxButtons - 1) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `
+                    <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changeFailurePage(${i})">${i}</button>
+                `;
+            }
+
+            paginationHTML += `
+                    <button class="page-btn" onclick="changeFailurePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+                </div>
+            `;
+
+            container.innerHTML = paginationHTML;
+        }
+    </script>
+</body>
+</html>
